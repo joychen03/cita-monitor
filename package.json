@@ -1,0 +1,17 @@
+{
+  "name": "citas-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Monitor de cita previa extranjería (toma de huellas, Barcelona)",
+  "scripts": {
+    "start": "node --env-file=.env src/monitor.js",
+    "once": "node --env-file=.env src/monitor.js --once",
+    "test-mail": "node --env-file=.env src/monitor.js --test-mail",
+    "test-sms": "node --env-file=.env src/monitor.js --test-sms"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "zod": "^3.24.1"
+  }
+}

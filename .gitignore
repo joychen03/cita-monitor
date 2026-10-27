@@ -1,0 +1,8 @@
+.env
+node_modules/
+.profile/
+capturas/
+ultima-comprobacion.png
+monitor.log
+logs/
+.claude/settings.local.json
