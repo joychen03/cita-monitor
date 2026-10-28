@@ -67,15 +67,37 @@ function loadConfig() {
 
 // ---------- avisos ----------
 
-function macNotify(title, body) {
-  const script = `display notification ${JSON.stringify(body)} with title ${JSON.stringify(title)} sound name "Glass"`
-  execFile('osascript', ['-e', script], () => {})
-  execFile('afplay', ['/System/Library/Sounds/Sosumi.aiff'], () => {})
+// Texto por variables de entorno para no interpolarlo en el script de PowerShell
+const WINDOWS_TOAST_SCRIPT = `
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null
+$title = [Security.SecurityElement]::Escape($env:NOTIFY_TITLE)
+$body = [Security.SecurityElement]::Escape($env:NOTIFY_BODY)
+$xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+$xml.LoadXml("<toast><visual><binding template='ToastGeneric'><text>$title</text><text>$body</text></binding></visual><audio src='ms-winsoundevent:Notification.Looping.Alarm'/></toast>")
+$appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show([Windows.UI.Notifications.ToastNotification]::new($xml))
+[System.Media.SystemSounds]::Exclamation.Play()
+`
+
+function desktopNotify(title, body) {
+  if (process.platform === 'darwin') {
+    const script = `display notification ${JSON.stringify(body)} with title ${JSON.stringify(title)} sound name "Glass"`
+    execFile('osascript', ['-e', script], () => {})
+    execFile('afplay', ['/System/Library/Sounds/Sosumi.aiff'], () => {})
+  } else if (process.platform === 'win32') {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', WINDOWS_TOAST_SCRIPT],
+      { env: { ...process.env, NOTIFY_TITLE: title, NOTIFY_BODY: body }, windowsHide: true },
+      (error) => error && log(`ERROR notificación Windows: ${error.message}`),
+    )
+  }
 }
 
 async function sendMail(cfg, subject, text, attachments = []) {
   if (!cfg.RESEND_API_KEY) {
-    log('AVISO: sin RESEND_API_KEY, no se envía correo (solo notificación macOS)')
+    log('AVISO: sin RESEND_API_KEY, no se envía correo (solo notificación de escritorio)')
     return
   }
   try {
@@ -111,7 +133,7 @@ async function sendSms(cfg, message) {
 }
 
 async function alert(cfg, subject, text, page) {
-  macNotify('Cita extranjería', subject)
+  desktopNotify('Cita extranjería', subject)
   const attachments = []
   if (page) {
     const file = await screenshot(page, 'aviso')
@@ -486,7 +508,7 @@ async function main() {
             : 'No se pudo completar la reserva automática. La ventana del monitor sigue abierta en el paso actual.',
           shot ? [{ filename: path.basename(shot), path: shot }] : [],
         )
-        macNotify('Cita extranjería', ok ? 'CITA RESERVADA' : 'Termina la reserva a mano')
+        desktopNotify('Cita extranjería', ok ? 'CITA RESERVADA' : 'Termina la reserva a mano')
       }
 
       log('Monitor en pausa. La ventana queda abierta. Ctrl+C para salir.')

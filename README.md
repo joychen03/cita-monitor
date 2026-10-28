@@ -1,7 +1,7 @@
 # Monitor cita previa extranjería — Toma de huellas (Barcelona)
 
 Comprueba cada 4–7 min si hay citas para **POLICÍA-TOMA DE HUELLAS (EXPEDICIÓN DE TARJETA)** en cualquier oficina de Barcelona.
-Cuando hay citas: notificación macOS + sonido + correo con captura. Opcionalmente intenta reservar la primera hora.
+Cuando hay citas: notificación de escritorio (macOS o Windows) + sonido + correo con captura. Opcionalmente intenta reservar la primera hora.
 
 ## Configuración
 
@@ -38,4 +38,4 @@ Se abre una ventana de Chromium: no cerrarla. Cuando hay citas, el monitor se pa
 
 - Si aparece un CAPTCHA o la web pide código SMS, hay que completarlo a mano en la ventana.
 - Intervalo por defecto 2–3 min. Más rápido = más riesgo de que la web bloquee la IP durante horas. Ante bloqueos el monitor espera cada vez más (máx. 1 h).
-- El Mac debe estar encendido y sin suspender: `caffeinate -i npm start`.
+- El ordenador debe estar encendido y sin suspender. macOS: `caffeinate -i npm start`. Windows 11: Configuración > Sistema > Energía > Suspender = Nunca, luego `npm start`.
