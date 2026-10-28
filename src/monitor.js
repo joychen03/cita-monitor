@@ -33,6 +33,8 @@ const configSchema = z.object({
   INTERVALO_MAX: z.coerce.number().min(1).default(7),
   // Segundos de espera tras un "no hay citas"; sin valor, usa INTERVALO_MIN/MAX
   ESPERA_SIN_CITAS_SEG: z.coerce.number().min(1).optional(),
+  // Hora local (HH:MM) en la que siempre se comprueba: corta cualquier espera más larga
+  HORA_PICO: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora con formato HH:MM').default('08:00'),
   TEXTBELT_API_KEY: z.string().min(10).optional(),
   SMS_PHONE: z.string().regex(/^\+\d{8,15}$/, 'Teléfono con prefijo internacional, p. ej. +34600000000').optional(),
   USE_CLAVE: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
@@ -49,6 +51,26 @@ const configSchema = z.object({
 
 const log = (msg) => process.stdout.write(`[${new Date().toLocaleString('es-ES')}] ${msg}\n`)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+// Próxima vez que el reloj local marca HH:MM (hoy o mañana)
+function nextDailyTime(hhmm, from = new Date()) {
+  const [h, m] = hhmm.split(':').map(Number)
+  const next = new Date(from)
+  next.setHours(h, m, 0, 0)
+  if (next <= from) next.setDate(next.getDate() + 1)
+  return next
+}
+
+// Espera ms, pero despierta justo a HORA_PICO si llega antes
+async function waitUntilNextCheck(ms, label, cfg) {
+  const untilPeak = nextDailyTime(cfg.HORA_PICO) - Date.now()
+  if (untilPeak < ms) {
+    log(`Próxima comprobación a las ${cfg.HORA_PICO} (espera de ${label} recortada)`)
+    return sleep(untilPeak)
+  }
+  log(`Próxima comprobación en ${label}`)
+  return sleep(ms)
+}
 const humanPause = () => sleep(800 + Math.random() * 1500)
 
 function loadConfig() {
@@ -534,12 +556,10 @@ async function main() {
       await alert(cfg, 'Monitor de citas bloqueado', 'La web está rechazando las peticiones. El monitor sigue reintentando más despacio.')
     }
     if (result === 'NO_CITAS' && cfg.ESPERA_SIN_CITAS_SEG) {
-      log(`Próxima comprobación en ${cfg.ESPERA_SIN_CITAS_SEG} s`)
-      await sleep(cfg.ESPERA_SIN_CITAS_SEG * 1_000)
+      await waitUntilNextCheck(cfg.ESPERA_SIN_CITAS_SEG * 1_000, `${cfg.ESPERA_SIN_CITAS_SEG} s`, cfg)
       continue
     }
-    log(`Próxima comprobación en ${minutes.toFixed(1)} min`)
-    await sleep(minutes * 60_000)
+    await waitUntilNextCheck(minutes * 60_000, `${minutes.toFixed(1)} min`, cfg)
   }
 
   await context.close()
