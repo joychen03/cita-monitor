@@ -31,6 +31,8 @@ const configSchema = z.object({
   EMAIL_CITA: z.string().email().optional(),
   INTERVALO_MIN: z.coerce.number().min(1).default(4),
   INTERVALO_MAX: z.coerce.number().min(1).default(7),
+  // Segundos de espera tras un "no hay citas"; sin valor, usa INTERVALO_MIN/MAX
+  ESPERA_SIN_CITAS_SEG: z.coerce.number().min(1).optional(),
   TEXTBELT_API_KEY: z.string().min(10).optional(),
   SMS_PHONE: z.string().regex(/^\+\d{8,15}$/, 'Teléfono con prefijo internacional, p. ej. +34600000000').optional(),
   USE_CLAVE: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
@@ -530,6 +532,11 @@ async function main() {
     const minutes = Math.min(60, base * 2 ** bloqueos)
     if (bloqueos === 3) {
       await alert(cfg, 'Monitor de citas bloqueado', 'La web está rechazando las peticiones. El monitor sigue reintentando más despacio.')
+    }
+    if (result === 'NO_CITAS' && cfg.ESPERA_SIN_CITAS_SEG) {
+      log(`Próxima comprobación en ${cfg.ESPERA_SIN_CITAS_SEG} s`)
+      await sleep(cfg.ESPERA_SIN_CITAS_SEG * 1_000)
+      continue
     }
     log(`Próxima comprobación en ${minutes.toFixed(1)} min`)
     await sleep(minutes * 60_000)
